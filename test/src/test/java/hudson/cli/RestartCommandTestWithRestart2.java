@@ -24,22 +24,31 @@
 
 package hudson.cli;
 
+import hudson.model.ExecutorTest;
+import hudson.model.FreeStyleProject;
 import jenkins.model.Jenkins;
 
 import static hudson.cli.CLICommandInvoker.Matcher.succeededSilently;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
  * @author pjanouse
  */
 
-// Scenario - simple restart
-public class RestartCommandTestWithRestart1 extends RestartCommandTestWithRestartBase {
+// Scenario - running build during restart
+public class RestartCommandTestWithRestart2 extends RestartCommandTestWithRestartBase {
 
     @Override
     public void testingPartBeforeRestart() throws Exception {
-        j.createSlave("TestSlave", null, null);
+        FreeStyleProject project = j.createFreeStyleProject("aProject");
+        ExecutorTest.startBlockingBuild(project);
+        assertThat(project.getBuilds(), hasSize(1));
+        Thread.sleep(1000);
+        assertThat("Job wasn't scheduled properly - it is not running", project.isBuilding(), equalTo(true));
+
         final CLICommandInvoker.Result result = command
                 .authorizedTo(Jenkins.ADMINISTER, Jenkins.READ)
                 .invoke();
@@ -48,6 +57,10 @@ public class RestartCommandTestWithRestart1 extends RestartCommandTestWithRestar
 
     @Override
     public void testingPartAfterRestart() throws Exception {
-        assertThat(j.jenkins.getNode("TestSlave"), notNullValue());
+        FreeStyleProject project = (FreeStyleProject) j.getInstance().getItem("aProject");
+        assertThat(project.getBuilds(), hasSize(1));
+        assertThat(project.isBuilding(), equalTo(false));
+        assertThat(project.getBuildByNumber(1), notNullValue());
+        assertThat(project.getBuildByNumber(1).getBuildStatusSummary().message, equalTo("aborted"));
     }
 }

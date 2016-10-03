@@ -86,9 +86,9 @@ public abstract class RestartCommandTestWithRestartBase {
     }
 
     public static class PersistentJenkinsRule extends JenkinsRule {
-        final static String JENKINS_HOME_NAME = "persistent-jenkins-temp";
-        final static String STATUS_FILE = "restart-status.tmp";
-        final static String GUARD_FILE = "restart-guard.tmp";
+        final static String JENKINS_HOME_NAME = "persistent-jenkins-temp"+System.getProperty("forkNumber");
+        final static String STATUS_FILE = "restart-status.tmp"+System.getProperty("forkNumber");
+        final static String GUARD_FILE = "restart-guard.tmp"+System.getProperty("forkNumber");
         final static int MAX_RETENTION_TIME = 10*60*1000; // 10m
         final static int MAX_RESTARTS = 3;
 
@@ -101,7 +101,6 @@ public abstract class RestartCommandTestWithRestartBase {
             try {
                 home = new File(System.getProperty("java.io.tmpdir"), JENKINS_HOME_NAME);
                 System.out.println("newHudson(): Looking for a Jenkins instance at '"+home+'\'');
-
                 //home.deleteOnExit();
                 int status = readStatus();
                 if (status == 0 || !home.exists()) {

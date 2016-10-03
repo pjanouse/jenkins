@@ -24,22 +24,36 @@
 
 package hudson.cli;
 
+import hudson.model.ExecutorTest;
+import hudson.model.FreeStyleProject;
+import hudson.model.Queue;
+import hudson.tasks.Shell;
+import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 
 import static hudson.cli.CLICommandInvoker.Matcher.succeededSilently;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
  * @author pjanouse
  */
 
-// Scenario - simple restart
-public class RestartCommandTestWithRestart1 extends RestartCommandTestWithRestartBase {
+// Scenario - running build during restart, next build scheduled and sits in the queue during restart call
+public class RestartCommandTestWithRestart3 extends RestartCommandTestWithRestartBase {
 
     @Override
     public void testingPartBeforeRestart() throws Exception {
-        j.createSlave("TestSlave", null, null);
+        final OneShotEvent finish = new OneShotEvent();
+        FreeStyleProject project = j.createFreeStyleProject("aProject");
+        OnlineNodeCommandTest.startBlockingAndFinishingBuild(project, finish);
+        assertThat(project.getBuilds(), hasSize(1));
+        Thread.sleep(1000);
+        assertThat("Job wasn't scheduled properly - it is not running", project.isBuilding(), equalTo(true));
+        project.scheduleBuild2(0);
+
         final CLICommandInvoker.Result result = command
                 .authorizedTo(Jenkins.ADMINISTER, Jenkins.READ)
                 .invoke();
@@ -48,6 +62,15 @@ public class RestartCommandTestWithRestart1 extends RestartCommandTestWithRestar
 
     @Override
     public void testingPartAfterRestart() throws Exception {
-        assertThat(j.jenkins.getNode("TestSlave"), notNullValue());
+        FreeStyleProject project = (FreeStyleProject) j.getInstance().getItem("aProject");
+        assertThat(project.isBuilding(), equalTo(true));
+        assertThat(project.getBuilds(), hasSize(2));
+        assertThat(project.getBuildByNumber(1), notNullValue());
+        assertThat(project.getBuildByNumber(2), notNullValue());
+        OnlineNodeCommandTest.getFinishingEvent(project).signal();
+        Thread.sleep(1000);
+        assertThat(project.isBuilding(), equalTo(false));
+        assertThat(project.getBuildByNumber(1).getBuildStatusSummary().message, equalTo("aborted"));
+        assertThat(project.getBuildByNumber(2).getBuildStatusSummary().message, equalTo("stable"));
     }
 }

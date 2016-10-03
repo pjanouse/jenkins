@@ -322,6 +322,15 @@ public class OnlineNodeCommandTest {
         return r;
     }
 
+    public static OneShotEvent getFinishingEvent(FreeStyleProject project) {
+        for (Builder b : project.getBuildersList()) {
+            if (b instanceof BlockingAndFinishingBuilder) {
+                return ((BlockingAndFinishingBuilder) b).getFinishEvent();
+            }
+        }
+        return null;
+    }
+
     private static final class BlockingAndFinishingBuilder extends Builder {
         private final OneShotEvent block;
         private final OneShotEvent finish;
@@ -348,7 +357,12 @@ public class OnlineNodeCommandTest {
             }
             return true;
         }
+
         @TestExtension("disconnectCause")
         public static class DescriptorImpl extends Descriptor<Builder> {}
+
+        public OneShotEvent getBlockEvent() { return block; }
+
+        public OneShotEvent getFinishEvent() { return finish; }
     }
 }
